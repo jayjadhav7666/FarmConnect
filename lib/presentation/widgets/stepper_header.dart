@@ -23,7 +23,6 @@ class RegistrationStepper extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      // Line before circle (except first)
                       Expanded(
                         child: Container(
                           height: 2,
@@ -34,7 +33,7 @@ class RegistrationStepper extends StatelessWidget {
                                     : Colors.grey.shade300),
                         ),
                       ),
-                      // Circle
+
                       Container(
                         width: 32,
                         height: 32,

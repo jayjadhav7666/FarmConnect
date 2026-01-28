@@ -1,3 +1,4 @@
+import 'package:farmconnect/core/constants/app_constants.dart';
 import 'package:farmconnect/core/theme/app_theme.dart';
 import 'package:farmconnect/presentation/screens/farmers_screen.dart';
 import 'package:farmconnect/presentation/screens/register_screen.dart';
@@ -23,7 +24,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(130),
+        preferredSize: const Size.fromHeight(110),
         child: Container(
           color: AppTheme.primaryGreen,
           padding: const EdgeInsets.only(
@@ -64,7 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Icon(Icons.location_on, color: Colors.white70, size: 14),
                   SizedBox(width: 4),
                   Text(
-                    'Market: Kalmeshwar APMC Market, Nagpur,',
+                    AppConstants.marketName,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),

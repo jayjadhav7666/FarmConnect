@@ -1,15 +1,17 @@
+import 'package:farmconnect/core/constants/app_constants.dart';
 import 'package:farmconnect/core/theme/app_theme.dart';
+import 'package:farmconnect/core/utils/location_utils.dart';
 import 'package:farmconnect/core/utils/validators.dart';
 import 'package:farmconnect/domain/entities/farmer.dart';
 import 'package:farmconnect/presentation/bloc/farmer_bloc.dart';
 import 'package:farmconnect/presentation/bloc/farmer_event.dart';
 import 'package:farmconnect/presentation/bloc/farmer_state.dart';
+import 'package:farmconnect/presentation/widgets/app_buttons.dart';
 import 'package:farmconnect/presentation/widgets/input_field.dart';
 import 'package:farmconnect/presentation/widgets/stepper_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
 class RegisterView extends StatefulWidget {
@@ -56,10 +58,6 @@ class _RegisterViewState extends State<RegisterView> {
   double? _distanceKm;
   bool _isCalculatingDistance = false;
 
-  // Market Location: Kalmeshwar APMC Market, Nagpur
-  static const double _marketLat = 21.2400895;
-  static const double _marketLng = 78.9009647;
-
   bool _isLoadingPin = false;
   bool _enableAddressFields = false;
 
@@ -99,12 +97,9 @@ class _RegisterViewState extends State<RegisterView> {
             return;
           }
           if (_distanceKm == null) {
-            // Optional: Block if distance is mandatory, or just warn
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text(
-                  'Please capture your location to calculate distance',
-                ),
+                content: Text('Please calculate location from address'),
               ),
             );
             return;
@@ -129,13 +124,13 @@ class _RegisterViewState extends State<RegisterView> {
 
   void _submit() {
     final farmer = Farmer(
-      name: _nameController.text,
-      mobile: _mobileController.text,
-      state: _stateController.text,
-      district: _districtController.text,
-      taluka: _talukaController.text,
-      village: _villageController.text,
-      crop: _cropController.text,
+      name: _nameController.text.trim(),
+      mobile: _mobileController.text.trim(),
+      state: _stateController.text.trim(),
+      district: _districtController.text.trim(),
+      taluka: _talukaController.text.trim(),
+      village: _villageController.text.trim(),
+      crop: _cropController.text.trim(),
       acreage: double.tryParse(_acreageController.text) ?? 0.0,
       harvestDate: _harvestDate ?? DateTime.now(),
       distanceKm: _distanceKm ?? 0.0,
@@ -199,54 +194,37 @@ class _RegisterViewState extends State<RegisterView> {
     });
 
     try {
-      bool serviceEnabled;
-      LocationPermission permission;
+      final address =
+          '${_villageController.text}, ${_talukaController.text}, ${_districtController.text}, ${_stateController.text}, ${_pinController.text}';
 
-      // Test if location services are enabled.
-      serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw 'Location services are disabled.';
+      if (address.trim().isEmpty || _pinController.text.isEmpty) {
+        throw 'Address details are missing. Please fill Location step.';
       }
 
-      permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw 'Location permissions are denied';
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        throw 'Location permissions are permanently denied, we cannot request permissions.';
-      }
-
-      Position position = await Geolocator.getCurrentPosition();
-
-      double distanceInMeters = Geolocator.distanceBetween(
-        position.latitude,
-        position.longitude,
-        _marketLat,
-        _marketLng,
+      final distance = await LocationUtils.calculateDistanceFromAddress(
+        address: address,
       );
 
-      setState(() {
-        _distanceKm = double.parse(
-          (distanceInMeters / 1000).toStringAsFixed(2),
-        );
-      });
+      if (distance != null) {
+        setState(() {
+          _distanceKm = distance;
+        });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Location captured! Distance: $_distanceKm km'),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Location found! Distance: $_distanceKm km'),
+            ),
+          );
+        }
+      } else {
+        throw 'Could not find location for this address.';
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     } finally {
       setState(() {
@@ -285,71 +263,66 @@ class _RegisterViewState extends State<RegisterView> {
           );
         }
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(height: 24),
-          const Text(
-            'Farmer Registration',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const Align(
-            alignment: Alignment.center,
-            child: Text('Basic details', style: TextStyle(color: Colors.grey)),
-          ),
-
-          RegistrationStepper(
-            currentStep: _currentStep,
-            steps: const [
-              'Personal Info',
-              'Location',
-              'Farm Details',
-              'Confirm',
-            ],
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(children: [_buildStepContent()]),
-              ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 15),
+            const Text(
+              'Farmer Registration',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                if (_currentStep > 0)
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _prevStep,
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppTheme.primaryGreen),
-                        foregroundColor: AppTheme.primaryGreen,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('Back'),
-                    ),
-                  )
-                else
-                  const Spacer(),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _nextStep,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: Text(
-                      _currentStep == 3 ? 'Complete Registration' : 'Next',
-                    ),
-                  ),
-                ),
+            const Text('Basic details', style: TextStyle(color: Colors.grey)),
+            RegistrationStepper(
+              currentStep: _currentStep,
+              steps: const [
+                'Personal Info',
+                'Location',
+                'Farm Details',
+                'Confirm',
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  Form(
+                    key: _formKey,
+                    child: Column(children: [_buildStepContent()]),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  if (_currentStep > 0)
+                    Expanded(
+                      child: AppButton(
+                        title: 'Back',
+                        onPressed: _prevStep,
+                        type: AppButtonType.secondary,
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: AppButton(
+                      title: _currentStep == 3
+                          ? 'Complete Registration'
+                          : 'Next',
+                      onPressed: _nextStep,
+                      type: AppButtonType.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -420,6 +393,14 @@ class _RegisterViewState extends State<RegisterView> {
                     LengthLimitingTextInputFormatter(6),
                   ],
                   onChanged: (value) {
+                    setState(() {
+                      if (_villageController.text.isNotEmpty) {
+                        _villageController.clear();
+                      }
+                      if (_distanceKm != null) {
+                        _distanceKm = null;
+                      }
+                    });
                     if (value.length == 6) {
                       FocusScope.of(
                         context,
@@ -486,7 +467,6 @@ class _RegisterViewState extends State<RegisterView> {
                     controller: _villageController,
                     focusNode: _villageFocus,
                     textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _nextStep(),
                     isRequired: true,
                     validator: (v) => Validators.validateRequired(v, 'Village'),
                   ),
@@ -518,10 +498,9 @@ class _RegisterViewState extends State<RegisterView> {
               prefixIcon: Icons.landscape_outlined,
               controller: _acreageController,
               focusNode: _acreageFocus,
-              textInputAction: TextInputAction.next,
+              textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) {
                 FocusScope.of(context).unfocus();
-                _selectDate();
               },
               keyboardType: TextInputType.number,
               isRequired: true,
@@ -584,7 +563,7 @@ class _RegisterViewState extends State<RegisterView> {
             const Padding(
               padding: EdgeInsets.only(bottom: 8.0),
               child: Text(
-                'Your Location',
+                'Farm Location',
                 style: TextStyle(
                   color: Colors.black87,
                   fontWeight: FontWeight.w500,
@@ -618,14 +597,14 @@ class _RegisterViewState extends State<RegisterView> {
                           Icon(
                             _distanceKm != null
                                 ? Icons.check_circle
-                                : Icons.near_me,
+                                : Icons.map_outlined,
                             color: AppTheme.primaryGreen,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             _distanceKm != null
-                                ? 'Distance Captured: $_distanceKm km'
-                                : 'Capture my location',
+                                ? 'Distance: $_distanceKm km from Market'
+                                : 'Calculate Location from Address',
                             style: const TextStyle(
                               color: AppTheme.primaryGreen,
                               fontWeight: FontWeight.bold,
@@ -639,7 +618,7 @@ class _RegisterViewState extends State<RegisterView> {
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
-                  'Distance to Market: $_distanceKm km',
+                  'Calculated based on village address',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ),
@@ -651,9 +630,9 @@ class _RegisterViewState extends State<RegisterView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF7F7F3),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -663,7 +642,7 @@ class _RegisterViewState extends State<RegisterView> {
                     'Review Your Details',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
@@ -677,21 +656,15 @@ class _RegisterViewState extends State<RegisterView> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildReviewItem(
-                          'Location',
-                          '${_villageController.text}, ${_talukaController.text}\n${_districtController.text}, ${_stateController.text} - ${_pinController.text}',
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildReviewItem('Crop', _cropController.text),
-                      ),
-                    ],
+                  const SizedBox(height: 14),
+                  _buildReviewItem(
+                    'Location',
+                    '${_villageController.text}, ${_talukaController.text}\n${_districtController.text}, ${_stateController.text} - ${_pinController.text}',
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+                  _buildReviewItem('Crop', _cropController.text),
+
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
@@ -712,7 +685,7 @@ class _RegisterViewState extends State<RegisterView> {
                   ),
                   const Divider(height: 32),
                   Text(
-                    'Distance to Kalmeshwar APMC Market: ${_distanceKm ?? 0.0} km',
+                    'Distance to ${AppConstants.marketName}: ${_distanceKm ?? 0.0} km',
                     style: const TextStyle(
                       color: AppTheme.primaryGreen,
                       fontWeight: FontWeight.bold,
