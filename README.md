@@ -87,3 +87,8 @@ lib/
     *   Click **"Distance: Calculate..."** to get the distance from the market.
 4.  Review and Submit.
 5.  Switch to the **"Farmers"** tab to see the list of registered farmers.
+6.
+7. ![WhatsApp Image 2026-01-29 at 1 36 02 AM (2)](https://github.com/user-attachments/assets/1b5e4268-c77b-439f-9c38-b4396f76f397)
+![WhatsApp Image 2026-01-29 at 1 36 02 AM](https://github.com/user-attachments!
+[WhatsApp Image 2026-01-29 at 1 36 02 AM (1)](https://github.com/user-attachments/assets/dd2ef1fd-6d42-467e-a391-4549b084f9d1)
+/assets/0c711200-62e5-4ea7-a133-ba53e9e6de77)
